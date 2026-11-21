@@ -1,0 +1,301 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 0: Default Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitive Helpers ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(uid) {
+      return isVerifiedUser() && request.auth.uid == uid;
+    }
+
+    function isBootstrappedAdmin() {
+      return isVerifiedUser() && request.auth.token.email == 'mahipawar295@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() ||
+        (isVerifiedUser() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // --- Validation Blueprints ---
+    function isValidAdminRecord(data, adminId) {
+      return data.keys().hasAll(['uid', 'email', 'fullName', 'role', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'fullName', 'role', 'createdAt']) &&
+        data.uid is string && data.uid == adminId && isValidId(data.uid) &&
+        data.email is string && data.email.size() >= 5 && data.email.size() <= 160 &&
+        data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 100 &&
+        data.role in ['head_librarian', 'staff_admin'] &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidStudentProfile(data, studentId) {
+      return data.keys().hasAll(['uid', 'prn', 'fullName', 'program', 'department', 'year', 'visitCount', 'totalMinutes', 'currentlyInside', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'prn', 'fullName', 'program', 'department', 'year', 'visitCount', 'totalMinutes', 'currentlyInside', 'lastEntryAt', 'createdAt', 'updatedAt']) &&
+        data.uid is string && data.uid == studentId && isValidId(data.uid) &&
+        data.prn is string && data.prn.size() >= 4 && data.prn.size() <= 32 && data.prn.matches('^[A-Z0-9\\-]+$') &&
+        data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 100 &&
+        data.program in ['Degree', 'Diploma'] &&
+        data.department is string && data.department.size() >= 2 && data.department.size() <= 80 &&
+        data.year in ['1st Year', '2nd Year', '3rd Year', '4th Year', 'FE', 'SE', 'TE', 'BE', 'FY', 'SY', 'TY'] &&
+        data.visitCount is number && data.visitCount >= 0 &&
+        data.totalMinutes is number && data.totalMinutes >= 0 &&
+        data.currentlyInside is bool &&
+        (!('lastEntryAt' in data) || (data.lastEntryAt is string && data.lastEntryAt.size() <= 64)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidTeacherProfile(data, teacherId) {
+      return data.keys().hasAll(['uid', 'employeeId', 'fullName', 'program', 'department', 'designation', 'visitCount', 'totalMinutes', 'currentlyInside', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'employeeId', 'fullName', 'program', 'department', 'designation', 'visitCount', 'totalMinutes', 'currentlyInside', 'lastEntryAt', 'createdAt', 'updatedAt']) &&
+        data.uid is string && data.uid == teacherId && isValidId(data.uid) &&
+        data.employeeId is string && data.employeeId.size() >= 4 && data.employeeId.size() <= 32 && data.employeeId.matches('^[A-Z0-9\\-]+$') &&
+        data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 100 &&
+        data.program in ['Degree', 'Diploma'] &&
+        data.department is string && data.department.size() >= 2 && data.department.size() <= 80 &&
+        data.designation is string && data.designation.size() >= 2 && data.designation.size() <= 64 &&
+        data.visitCount is number && data.visitCount >= 0 &&
+        data.totalMinutes is number && data.totalMinutes >= 0 &&
+        data.currentlyInside is bool &&
+        (!('lastEntryAt' in data) || (data.lastEntryAt is string && data.lastEntryAt.size() <= 64)) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidMemberPrivateContact(data, memberId) {
+      return data.keys().hasAll(['uid', 'email', 'mfaEnabled', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'phone', 'mfaEnabled', 'updatedAt']) &&
+        data.uid is string && data.uid == memberId && isValidId(data.uid) &&
+        data.email is string && data.email.size() >= 5 && data.email.size() <= 160 &&
+        (!('phone' in data) || (data.phone is string && data.phone.size() <= 20)) &&
+        data.mfaEnabled is bool &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidLibraryLog(data, logId) {
+      return data.keys().hasAll(['logId', 'studentUid', 'prn', 'studentName', 'program', 'department', 'status', 'entryTime', 'durationMinutes', 'scanMethod', 'academicYear', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['logId', 'studentUid', 'prn', 'studentName', 'program', 'department', 'status', 'entryTime', 'exitTime', 'durationMinutes', 'scanMethod', 'academicYear', 'createdAt', 'updatedAt']) &&
+        data.logId is string && data.logId == logId && isValidId(data.logId) &&
+        data.studentUid is string && isValidId(data.studentUid) &&
+        data.prn is string && data.prn.size() >= 4 && data.prn.size() <= 32 &&
+        data.studentName is string && data.studentName.size() >= 2 && data.studentName.size() <= 100 &&
+        data.program in ['Degree', 'Diploma'] &&
+        data.department is string && data.department.size() >= 2 && data.department.size() <= 80 &&
+        data.status in ['INSIDE', 'COMPLETED'] &&
+        data.entryTime is string && data.entryTime.size() >= 8 && data.entryTime.size() <= 64 &&
+        (!('exitTime' in data) || (data.exitTime is string && data.exitTime.size() <= 64)) &&
+        data.durationMinutes is number && data.durationMinutes >= 0 && data.durationMinutes <= 1440 &&
+        data.scanMethod in ['QR_KIOSK', 'STUDENT_SCAN', 'MANUAL_ADMIN'] &&
+        data.academicYear is string && data.academicYear.size() >= 4 && data.academicYear.size() <= 16 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidCloudBackup(data, backupId) {
+      return data.keys().hasAll(['backupId', 'createdByUid', 'recordCount', 'studentCount', 'checksum', 'academicRange', 'createdAt']) &&
+        data.keys().hasOnly(['backupId', 'createdByUid', 'recordCount', 'studentCount', 'checksum', 'academicRange', 'createdAt']) &&
+        data.backupId is string && data.backupId == backupId && isValidId(data.backupId) &&
+        data.createdByUid is string && isValidId(data.createdByUid) &&
+        data.recordCount is number && data.recordCount >= 0 &&
+        data.studentCount is number && data.studentCount >= 0 &&
+        data.checksum is string && data.checksum.size() >= 8 && data.checksum.size() <= 128 &&
+        data.academicRange is string && data.academicRange.size() >= 4 && data.academicRange.size() <= 32 &&
+        data.createdAt is timestamp;
+    }
+
+    function isValidReportSchedule(data, scheduleId) {
+      return data.keys().hasAll(['scheduleId', 'ownerUid', 'recipientEmail', 'dayOfWeek', 'enabled', 'updatedAt']) &&
+        data.keys().hasOnly(['scheduleId', 'ownerUid', 'recipientEmail', 'dayOfWeek', 'ntfyTopic', 'enabled', 'lastSentAt', 'updatedAt']) &&
+        data.scheduleId is string && data.scheduleId == scheduleId && isValidId(data.scheduleId) &&
+        data.ownerUid is string && isValidId(data.ownerUid) &&
+        data.recipientEmail is string && data.recipientEmail.size() >= 5 && data.recipientEmail.size() <= 160 &&
+        data.dayOfWeek in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] &&
+        (!('ntfyTopic' in data) || (data.ntfyTopic is string && data.ntfyTopic.size() <= 100)) &&
+        data.enabled is bool &&
+        (!('lastSentAt' in data) || (data.lastSentAt is string && data.lastSentAt.size() <= 64)) &&
+        data.updatedAt is timestamp;
+    }
+
+    // --- Collection Rules ---
+    match /test/connection {
+      allow get: if true;
+    }
+
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && (isOwner(adminId) || isAdmin());
+      allow list: if isBootstrappedAdmin();
+      allow create: if isValidId(adminId) && isAdmin() &&
+        isValidAdminRecord(incoming(), adminId) &&
+        incoming().createdAt == request.time;
+      allow update: if isValidId(adminId) && isAdmin() &&
+        isValidAdminRecord(incoming(), adminId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt;
+      allow delete: if isValidId(adminId) && isBootstrappedAdmin();
+    }
+
+    match /students/{studentId} {
+      allow get: if isValidId(studentId) && (isOwner(studentId) || isAdmin());
+      allow list: if isBootstrappedAdmin() || (isVerifiedUser() && resource.data.uid == request.auth.uid);
+
+      allow create: if isValidId(studentId) && isVerifiedUser() &&
+        isValidStudentProfile(incoming(), studentId) &&
+        (isAdmin() || (incoming().uid == request.auth.uid && incoming().visitCount == 0 && incoming().totalMinutes == 0)) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isValidId(studentId) && isVerifiedUser() &&
+        isValidStudentProfile(incoming(), studentId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (isOwner(studentId) && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'program', 'department', 'year', 'visitCount', 'totalMinutes', 'currentlyInside', 'lastEntryAt', 'updatedAt']))
+        );
+
+      allow delete: if isValidId(studentId) && isAdmin();
+
+      // Master Gate + PII Isolation Subcollection
+      match /private/{docId} {
+        allow get: if isValidId(studentId) && isValidId(docId) && (isOwner(studentId) || isAdmin());
+        allow list: if isBootstrappedAdmin() || (isVerifiedUser() && resource.data.uid == request.auth.uid);
+
+        allow create: if isValidId(studentId) && isValidId(docId) &&
+          docId == 'contact' &&
+          exists(/databases/$(database)/documents/students/$(studentId)) &&
+          (isOwner(studentId) || isAdmin()) &&
+          isValidMemberPrivateContact(incoming(), studentId) &&
+          incoming().updatedAt == request.time;
+
+        allow update: if isValidId(studentId) && isValidId(docId) &&
+          docId == 'contact' &&
+          exists(/databases/$(database)/documents/students/$(studentId)) &&
+          (isOwner(studentId) || isAdmin()) &&
+          isValidMemberPrivateContact(incoming(), studentId) &&
+          incoming().uid == existing().uid &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['email', 'phone', 'mfaEnabled', 'updatedAt']);
+
+        allow delete: if isValidId(studentId) && isValidId(docId) && isAdmin();
+      }
+    }
+
+    match /teachers/{teacherId} {
+      allow get: if isValidId(teacherId) && (isOwner(teacherId) || isAdmin());
+      allow list: if isBootstrappedAdmin() || (isVerifiedUser() && resource.data.uid == request.auth.uid);
+
+      allow create: if isValidId(teacherId) && isVerifiedUser() &&
+        isValidTeacherProfile(incoming(), teacherId) &&
+        (isAdmin() || (incoming().uid == request.auth.uid && incoming().visitCount == 0 && incoming().totalMinutes == 0)) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isValidId(teacherId) && isVerifiedUser() &&
+        isValidTeacherProfile(incoming(), teacherId) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (isOwner(teacherId) && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'program', 'department', 'designation', 'visitCount', 'totalMinutes', 'currentlyInside', 'lastEntryAt', 'updatedAt']))
+        );
+
+      allow delete: if isValidId(teacherId) && isAdmin();
+
+      // Master Gate + PII Isolation Subcollection
+      match /private/{docId} {
+        allow get: if isValidId(teacherId) && isValidId(docId) && (isOwner(teacherId) || isAdmin());
+        allow list: if isBootstrappedAdmin() || (isVerifiedUser() && resource.data.uid == request.auth.uid);
+
+        allow create: if isValidId(teacherId) && isValidId(docId) &&
+          docId == 'contact' &&
+          exists(/databases/$(database)/documents/teachers/$(teacherId)) &&
+          (isOwner(teacherId) || isAdmin()) &&
+          isValidMemberPrivateContact(incoming(), teacherId) &&
+          incoming().updatedAt == request.time;
+
+        allow update: if isValidId(teacherId) && isValidId(docId) &&
+          docId == 'contact' &&
+          exists(/databases/$(database)/documents/teachers/$(teacherId)) &&
+          (isOwner(teacherId) || isAdmin()) &&
+          isValidMemberPrivateContact(incoming(), teacherId) &&
+          incoming().uid == existing().uid &&
+          incoming().updatedAt == request.time &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['email', 'phone', 'mfaEnabled', 'updatedAt']);
+
+        allow delete: if isValidId(teacherId) && isValidId(docId) && isAdmin();
+      }
+    }
+
+    match /libraryLogs/{logId} {
+      allow get: if isValidId(logId) && (isAdmin() || (isVerifiedUser() && resource.data.studentUid == request.auth.uid));
+      allow list: if isBootstrappedAdmin() || (isVerifiedUser() && resource.data.studentUid == request.auth.uid);
+
+      allow create: if isValidId(logId) && isVerifiedUser() &&
+        isValidLibraryLog(incoming(), logId) &&
+        (exists(/databases/$(database)/documents/students/$(incoming().studentUid)) ||
+         exists(/databases/$(database)/documents/teachers/$(incoming().studentUid))) &&
+        (isAdmin() || (incoming().studentUid == request.auth.uid && incoming().status == 'INSIDE')) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isValidId(logId) && isVerifiedUser() &&
+        isValidLibraryLog(incoming(), logId) &&
+        incoming().logId == existing().logId &&
+        incoming().studentUid == existing().studentUid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          isAdmin() ||
+          (existing().studentUid == request.auth.uid &&
+           existing().status == 'INSIDE' &&
+           incoming().status == 'COMPLETED' &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['status', 'exitTime', 'durationMinutes', 'updatedAt']))
+        );
+
+      allow delete: if isValidId(logId) && isAdmin();
+    }
+
+    match /backups/{backupId} {
+      allow get: if isValidId(backupId) && isAdmin();
+      allow list: if isBootstrappedAdmin();
+      allow create: if isValidId(backupId) && isAdmin() &&
+        isValidCloudBackup(incoming(), backupId) &&
+        incoming().createdByUid == request.auth.uid &&
+        incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isValidId(backupId) && isBootstrappedAdmin();
+    }
+
+    match /reportSchedules/{scheduleId} {
+      allow get: if isValidId(scheduleId) && isAdmin();
+      allow list: if isBootstrappedAdmin();
+      allow create, update: if isValidId(scheduleId) && isAdmin() &&
+        isValidReportSchedule(incoming(), scheduleId) &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().updatedAt == request.time;
+      allow delete: if isValidId(scheduleId) && isAdmin();
+    }
+  }
+}

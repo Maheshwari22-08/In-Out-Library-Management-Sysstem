@@ -1,0 +1,6 @@
+{
+  "name": "Dnyanshree Central Library Portal",
+  "description": "Smart QR-enabled In/Out Entry, Attendance Analytics, MFA Security, and Archival Management System for Dnyanshree Institute of Engineering and Technology, Satara.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

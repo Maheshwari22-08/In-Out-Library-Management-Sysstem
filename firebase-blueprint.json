@@ -1,0 +1,157 @@
+{
+  "entities": {
+    "AdminRecord": {
+      "title": "AdminRecord",
+      "description": "Authorized library administrator account metadata.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "fullName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "role": { "type": "string", "enum": ["head_librarian", "staff_admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "fullName", "role", "createdAt"]
+    },
+    "StudentProfile": {
+      "title": "StudentProfile",
+      "description": "Public-safe student library card and visit summary for Degree and Diploma cohorts.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "prn": { "type": "string", "minLength": 4, "maxLength": 32, "pattern": "^[A-Z0-9\\-]+$" },
+        "fullName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "program": { "type": "string", "enum": ["Degree", "Diploma"] },
+        "department": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "year": { "type": "string", "enum": ["1st Year", "2nd Year", "3rd Year", "4th Year", "FE", "SE", "TE", "BE", "FY", "SY", "TY"] },
+        "visitCount": { "type": "number" },
+        "totalMinutes": { "type": "number" },
+        "currentlyInside": { "type": "boolean" },
+        "lastEntryAt": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "prn", "fullName", "program", "department", "year", "visitCount", "totalMinutes", "currentlyInside", "createdAt", "updatedAt"]
+    },
+    "TeacherProfile": {
+      "title": "TeacherProfile",
+      "description": "Public-safe faculty/teacher library card and visit summary for Degree and Diploma wings.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "employeeId": { "type": "string", "minLength": 4, "maxLength": 32, "pattern": "^[A-Z0-9\\-]+$" },
+        "fullName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "program": { "type": "string", "enum": ["Degree", "Diploma"] },
+        "department": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "designation": { "type": "string", "minLength": 2, "maxLength": 64 },
+        "visitCount": { "type": "number" },
+        "totalMinutes": { "type": "number" },
+        "currentlyInside": { "type": "boolean" },
+        "lastEntryAt": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "employeeId", "fullName", "program", "department", "designation", "visitCount", "totalMinutes", "currentlyInside", "createdAt", "updatedAt"]
+    },
+    "MemberPrivateContact": {
+      "title": "MemberPrivateContact",
+      "description": "Isolated PII contact details and MFA flag for a student or teacher.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "phone": { "type": "string", "maxLength": 20 },
+        "mfaEnabled": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "mfaEnabled", "updatedAt"]
+    },
+    "LibraryLog": {
+      "title": "LibraryLog",
+      "description": "Immutable/auditable student or faculty library check-in and check-out record.",
+      "type": "object",
+      "properties": {
+        "logId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "studentUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "prn": { "type": "string", "minLength": 4, "maxLength": 32 },
+        "studentName": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "program": { "type": "string", "enum": ["Degree", "Diploma"] },
+        "department": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "status": { "type": "string", "enum": ["INSIDE", "COMPLETED"] },
+        "entryTime": { "type": "string", "maxLength": 64 },
+        "exitTime": { "type": "string", "maxLength": 64 },
+        "durationMinutes": { "type": "number" },
+        "scanMethod": { "type": "string", "enum": ["QR_KIOSK", "STUDENT_SCAN", "MANUAL_ADMIN"] },
+        "academicYear": { "type": "string", "minLength": 4, "maxLength": 16 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["logId", "studentUid", "prn", "studentName", "program", "department", "status", "entryTime", "durationMinutes", "scanMethod", "academicYear", "createdAt", "updatedAt"]
+    },
+    "CloudBackup": {
+      "title": "CloudBackup",
+      "description": "Long-term archival snapshot metadata for 10-12 year compliance.",
+      "type": "object",
+      "properties": {
+        "backupId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "createdByUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "recordCount": { "type": "number" },
+        "studentCount": { "type": "number" },
+        "checksum": { "type": "string", "minLength": 8, "maxLength": 128 },
+        "academicRange": { "type": "string", "minLength": 4, "maxLength": 32 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["backupId", "createdByUid", "recordCount", "studentCount", "checksum", "academicRange", "createdAt"]
+    },
+    "ReportSchedule": {
+      "title": "ReportSchedule",
+      "description": "Automated weekly email report and mobile alert configuration.",
+      "type": "object",
+      "properties": {
+        "scheduleId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "recipientEmail": { "type": "string", "format": "email", "maxLength": 160 },
+        "dayOfWeek": { "type": "string", "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] },
+        "ntfyTopic": { "type": "string", "maxLength": 100 },
+        "enabled": { "type": "boolean" },
+        "lastSentAt": { "type": "string", "maxLength": 64 },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["scheduleId", "ownerUid", "recipientEmail", "dayOfWeek", "enabled", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminRecord" },
+      "description": "Librarian and administrative access records."
+    },
+    "/students/{studentId}": {
+      "schema": { "$ref": "#/entities/StudentProfile" },
+      "description": "Public-safe student library card profiles."
+    },
+    "/students/{studentId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/MemberPrivateContact" },
+      "description": "Isolated PII contact details and MFA metadata for students."
+    },
+    "/teachers/{teacherId}": {
+      "schema": { "$ref": "#/entities/TeacherProfile" },
+      "description": "Public-safe faculty/teacher library card profiles."
+    },
+    "/teachers/{teacherId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/MemberPrivateContact" },
+      "description": "Isolated PII contact details and MFA metadata for faculty."
+    },
+    "/libraryLogs/{logId}": {
+      "schema": { "$ref": "#/entities/LibraryLog" },
+      "description": "Library IN/OUT attendance logs for Degree and Diploma cohorts."
+    },
+    "/backups/{backupId}": {
+      "schema": { "$ref": "#/entities/CloudBackup" },
+      "description": "Archival snapshot metadata for 10-12 year retention."
+    },
+    "/reportSchedules/{scheduleId}": {
+      "schema": { "$ref": "#/entities/ReportSchedule" },
+      "description": "Weekly digest email and mobile notification preferences."
+    }
+  }
+}
